@@ -22,16 +22,15 @@ def play_game(args):
     # map message
     message = client_socket.get_message()
     game_state.update_game_state(message)
-
-    print("state:",game_state.STATE)
-
+    print("done")
+    print(game_state.STATE,game_state.TEAM)
     # start of the game
     while True:
         message  = client_socket.get_message()
         time_message_received = time.time()
         game_state.update_game_state(message)
         if message[0] == "upd":
-            nb_moves, moves = COMPUTE_NEXT_MOVE(GAME_STATE)
+            nb_moves, moves = COMPUTE_NEXT_MOVE(game_state.STATE)
             client_socket.send_mov(nb_moves, moves)
 
 
