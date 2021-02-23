@@ -22,8 +22,8 @@ def play_game(args):
     # map message
     message = client_socket.get_message()
     game_state.update_game_state(message)
-    print("done")
-    print(game_state.STATE,game_state.TEAM)
+    print(game_state.STATE,game_state.TEAM, game_state.TEAM_POSITIONS)
+    print(game_state.get_possible_moves())
     # start of the game
     while True:
         message  = client_socket.get_message()
