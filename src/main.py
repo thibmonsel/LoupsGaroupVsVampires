@@ -4,6 +4,7 @@ from client import ClientSocket
 from argparse import ArgumentParser
 
 from state import GameState
+from AI.compute_next_move import compute_next_move
 
 
 def play_game(args):
@@ -22,15 +23,14 @@ def play_game(args):
     # map message
     message = client_socket.get_message()
     game_state.update_game_state(message)
-    print(game_state.STATE,game_state.TEAM, game_state.TEAM_POSITIONS)
-    print(game_state.get_possible_moves())
+    
     # start of the game
     while True:
         message  = client_socket.get_message()
         time_message_received = time.time()
         game_state.update_game_state(message)
         if message[0] == "upd":
-            nb_moves, moves = COMPUTE_NEXT_MOVE(game_state.STATE)
+            nb_moves, moves = compute_next_move(game_state)
             client_socket.send_mov(nb_moves, moves)
 
 

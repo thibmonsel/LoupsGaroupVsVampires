@@ -18,9 +18,9 @@ class GameState:
 
             #Update the teams positions
             if people[self.TEAM] > 0 and self.STATE[i,j,self.TEAM] == 0:
-                self.TEAM_POSITIONS.remove((i,j))
-            if people[self.TEAM] == 0 and self.STATE[i,j,self.TEAM] > 0:
                 self.TEAM_POSITIONS.add((i,j))
+            if people[self.TEAM] == 0 and self.STATE[i,j,self.TEAM] > 0:
+                self.TEAM_POSITIONS.remove((i,j))
             self.STATE[i,j,:] = people
 
 
@@ -56,12 +56,12 @@ class GameState:
 
     
     def get_possible_moves(self):
-        possible_moves = {}
+        possible_moves_dic = {}
         for i,j in self.TEAM_POSITIONS:
             units = self.STATE[i,j,self.TEAM]
-            possible_moves[(i,j)] = [
+            possible_moves_dic[(i,j)] = [
                     [nb, (k,l)] 
                     for k,l in self.get_possible_directions(i,j)
                     for nb in range(1,units+1)
                 ]
-        return possible_moves
+        return [[source,nb,dest] for source,moves in possible_moves_dic.items()  for nb,dest in moves]
