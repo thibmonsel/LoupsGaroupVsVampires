@@ -54,14 +54,46 @@ class GameState:
     def get_possible_directions(self,i,j):
         return [(i+k,j+l) for k in range(-1,2) for l in range(-1,2) if (k!=0 or l!=0) and 0<=i+k<self.STATE.shape[0] and 0<=j+l<self.STATE.shape[1]  ]
 
-    
-    def get_possible_moves(self):
-        possible_moves_dic = {}
-        for i,j in self.TEAM_POSITIONS:
-            units = self.STATE[i,j,self.TEAM]
-            possible_moves_dic[(i,j)] = [
-                    [nb, (k,l)] 
-                    for k,l in self.get_possible_directions(i,j)
-                    for nb in range(1,units+1)
-                ]
-        return [[source,nb,dest] for source,moves in possible_moves_dic.items()  for nb,dest in moves]
+    def get_possible_moves(self,team_positions=None,current_move={},current_move_dests=set(), current_move_sources=set()):
+        if team_positions is None:
+            team_positions = { (i,j):self.STATE[i,j,self.TEAM] for i,j in self.TEAM_POSITIONS}
+        all_moves = set()
+        for i,j in team_positions:
+            units = team_positions[(i,j)]
+            if (i,j) not in current_move_dests:
+                for nb in range(1,units+1):
+                    for k,l in self.get_possible_directions(i,j):
+                        if (i,j,k,l) in current_move or (k,l) in current_move_sources:
+                            continue
+                        new_current = current_move.copy()
+                        new_current[(i,j,k,l)] = nb
+                        frozen_current = frozenset({((i,j),nb,(k,l)) for (i,j,k,l),nb in new_current.items()})
+                        if frozen_current in all_moves:
+                            continue
+                        all_moves.add(frozen_current)
+                        new_current_move_dests = current_move_dests.copy()
+                        new_current_move_dests.add((k,l))
+                        new_current_move_sources = current_move_sources.copy()
+                        new_current_move_sources.add((i,j))
+                        remaining_team_positions = team_positions.copy()
+                        remaining_team_positions[(i,j)] = remaining_team_positions[(i,j)] - nb
+                        if remaining_team_positions[(i,j)] == 0:
+                            del remaining_team_positions[(i,j)]
+                        recurrent_moves = self.get_possible_moves(
+                            remaining_team_positions,
+                            new_current,
+                            new_current_move_dests,
+                            new_current_move_sources)
+                        all_moves = all_moves.union(recurrent_moves)
+        return all_moves
+
+    # def get_possible_moves(self):
+    #     possible_moves_dic = {}
+    #     for i,j in self.TEAM_POSITIONS:
+    #         units = self.STATE[i,j,self.TEAM]
+    #         possible_moves_dic[(i,j)] = [
+    #                 [nb, (k,l)] 
+    #                 for k,l in self.get_possible_directions(i,j)
+    #                 for nb in range(1,units+1)
+    #             ]
+    #     return [[source,nb,dest] for source,moves in possible_moves_dic.items()  for nb,dest in moves]
