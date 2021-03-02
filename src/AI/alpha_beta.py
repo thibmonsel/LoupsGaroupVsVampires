@@ -24,21 +24,19 @@ def heuristic(game_state):
     return COEFF_1*units_diff + COEFF_2*distance_to_humans(game_state)
 
 
-def alpha_beta(game_state,rec_depth,alpha=float('-inf'),beta=float('inf'),sign=1):
+def alpha_beta(game_state,rec_depth,alpha=float('-inf'),beta=float('inf')):
     if rec_depth == 0:
-        #with such an usage the heuristic must be symmetric
-        return sign*heuristic(game_state),None
+        return heuristic(game_state),None
 
     possible_moves = game_state.get_possible_moves(1,6)
     max_move = None
     for move in possible_moves:
-        game_state = game_state.copy()
         game_states = game_state.apply_move(move)
         if len(game_states) > 1:
-            score,_ = alpha_beta_proba(game_states,rec_depth,-beta,-alpha,-sign)
+            score,_ = alpha_beta_proba(game_states,rec_depth,-beta,-alpha)
             score = -score
         else: 
-            score,_ = alpha_beta(game_states[0][1],rec_depth-1,-beta,-alpha,-sign)
+            score,_ = alpha_beta(game_states[0][1],rec_depth-1,-beta,-alpha)
             score = -score
         if score >= beta: #Beta cut
             return beta,move
@@ -47,9 +45,9 @@ def alpha_beta(game_state,rec_depth,alpha=float('-inf'),beta=float('inf'),sign=1
     return alpha,max_move
 
 
-def alpha_beta_proba(game_states,rec_depth,alpha,beta,sign):
+def alpha_beta_proba(game_states,rec_depth,alpha,beta):
     score = 0
     for proba,game_state in game_states:
-        rec_score,_ = alpha_beta(game_state,rec_depth-1,alpha,beta,sign)
+        rec_score,_ = alpha_beta(game_state,rec_depth-1,alpha,beta)
         score += proba*rec_score
     return score,None
