@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.special import binom
 
 class GameState:
 
@@ -7,6 +8,15 @@ class GameState:
         self.TEAM = None
         self.START = None
         self.TEAM_POSITIONS = set()
+        
+    
+    def copy(self):
+        copy = GameState()
+        copy.STATE = np.copy(self.STATE)
+        copy.TEAM = self.TEAM
+        copy.START = self.START
+        copy.TEAM_POSITIONS = self.TEAM_POSITIONS.copy()
+        return copy
 
     def set_board(self,size):
         n,m = size
@@ -54,14 +64,25 @@ class GameState:
     def get_possible_directions(self,i,j):
         return [(i+k,j+l) for k in range(-1,2) for l in range(-1,2) if (k!=0 or l!=0) and 0<=i+k<self.STATE.shape[0] and 0<=j+l<self.STATE.shape[1]  ]
 
-    def get_possible_moves(self,team_positions=None,current_move={},current_move_dests=set(), current_move_sources=set()):
+    def get_possible_moves(
+            self,
+            min_group_size=1,
+            max_number_group=None,
+            team_positions=None,
+            current_move={},
+            current_move_dests=set(),
+            current_move_sources=set()
+        ):
         if team_positions is None:
             team_positions = { (i,j):self.STATE[i,j,self.TEAM] for i,j in self.TEAM_POSITIONS}
         all_moves = set()
         for i,j in team_positions:
             units = team_positions[(i,j)]
             if (i,j) not in current_move_dests:
-                for nb in range(1,units+1):
+                possible_nb_units = [units]
+                if max_number_group is not None or len(self.TEAM_POSITIONS) + len(current_move) < max_number_group:
+                    possible_nb_units = possible_nb_units + list(range(min_group_size,units+1-min_group_size))
+                for nb in possible_nb_units:
                     for k,l in self.get_possible_directions(i,j):
                         if (i,j,k,l) in current_move or (k,l) in current_move_sources:
                             continue
@@ -80,6 +101,8 @@ class GameState:
                         if remaining_team_positions[(i,j)] == 0:
                             del remaining_team_positions[(i,j)]
                         recurrent_moves = self.get_possible_moves(
+                            min_group_size,
+                            max_number_group,
                             remaining_team_positions,
                             new_current,
                             new_current_move_dests,
@@ -87,13 +110,101 @@ class GameState:
                         all_moves = all_moves.union(recurrent_moves)
         return all_moves
 
-    # def get_possible_moves(self):
-    #     possible_moves_dic = {}
-    #     for i,j in self.TEAM_POSITIONS:
-    #         units = self.STATE[i,j,self.TEAM]
-    #         possible_moves_dic[(i,j)] = [
-    #                 [nb, (k,l)] 
-    #                 for k,l in self.get_possible_directions(i,j)
-    #                 for nb in range(1,units+1)
-    #             ]
-    #     return [[source,nb,dest] for source,moves in possible_moves_dic.items()  for nb,dest in moves]
+    def apply_move(self,moves):
+        states = [(1,self.copy())]
+        for (x_start, y_start), n_units, (x_end, y_end) in moves:
+            for _,state in states:
+                new_start = list(state.STATE[x_start, y_start,:])
+                new_start[state.TEAM] -= n_units
+                state.update_board([(x_start, y_start,*new_start)])
+            
+            destination_content = self.STATE[x_end, y_end,:]
+            #No conflict
+            if np.sum(destination_content) == 0 or destination_content[self.TEAM] > 0:
+                for _,state in states:
+                    new_content = [0,0,0]
+                    new_content[state.TEAM] += n_units+destination_content[self.TEAM]
+                    state.update_board([(x_end, y_end,*new_content)])
+                continue
+            
+            # If there are humans
+            if destination_content[0] > 0:
+                n_humans = destination_content[0]
+
+                # No battle
+                if n_units >= n_humans:
+                    for _,state in states:
+                        new_content = [0,0,0]
+                        new_content[state.TEAM] += n_units + destination_content[0]
+                        state.update_board([(x_end, y_end,*new_content)])
+                
+                # Battle
+                else:
+                    p_win = n_units / (2 * n_humans)
+                    n = n_units + n_humans
+                    n_surv_with_proba = [(p_win*binom(n,k)*p_win**k*(1-p_win)**(n-k),k) for k in range(n+1)]
+                    n_surv_human_with_proba = [((1-p_win)*binom(n_humans,k)*(1-p_win)**k*p_win**(n_humans-k),k) for k in range(n_humans+1)]
+                    new_states = []
+                    for proba1,state in states:
+                        #case team win
+                        for proba2,n_surv in n_surv_with_proba:
+                            new_content = [0,0,0]
+                            new_content[state.TEAM] = n_surv
+                            state = state.copy()
+                            state.update_board([(x_end, y_end,*new_content)])
+                            new_states.append((proba1*proba2,state))
+                        #case human win
+                        for proba2,n_surv in n_surv_human_with_proba:
+                            state = state.copy()
+                            state.update_board([(x_end, y_end,n_surv,0,0)])
+                            new_states.append((proba1*proba2,state))
+                    states = new_states
+                continue
+
+            # If there are enemies
+            if destination_content[self.TEAM] > 0:
+                ennemy_player = 3 - self.TEAM 
+                n_ennemies = destination_content[ennemy_player]
+
+                # No battle
+                if n_units >= 1.5 * n_ennemies:
+                    new_content = [0,0,0]
+                    new_content[self.TEAM]=n_units
+                    for _,state in states:
+                        state.update_board([(x_end, y_end,*new_content)])
+                    continue
+                if 1.5 * n_units <=  n_ennemies:
+                    continue
+                
+                # Battle
+                if n_units <= n_ennemies:
+                    p_win = n_units / (2 * n_ennemies)
+                else:
+                    p_win = (n_units / n_ennemies) - 0.5
+                
+                n_surv_team_with_proba = [(p_win*binom(n_units,k)*(1-p_win)**k*p_win**(n_units-k),k) for k in range(n_units+1)]
+                n_surv_ennemy_with_proba = [((1-p_win)*binom(n_ennemies,k)*(1-p_win)**k*p_win**(n_ennemies-k),k) for k in range(n_ennemies+1)]
+
+                new_states = []
+                for proba1,state in states:
+                    #case team win
+                    for proba2,n_surv in n_surv_team_with_proba:
+                        new_content = [0,0,0]
+                        new_content[state.TEAM] = n_surv
+                        state = state.copy()
+                        state.update_board([(x_end, y_end,*new_content)])
+                        new_states.append((proba1*proba2,state))
+                    #case ennemy win
+                    for proba2,n_surv in n_surv_ennemy_with_proba:
+                        new_content = [0,0,0]
+                        new_content[ennemy_player] = n_surv
+                        state = state.copy()
+                        state.update_board([(x_end, y_end,*new_content)])
+                        new_states.append((proba1*proba2,state))
+                states = new_states
+
+        #Change the player after the move has been done        
+        for _,state in states:
+            state.TEAM = 3-state.TEAM
+        return states
+

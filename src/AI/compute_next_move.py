@@ -1,12 +1,10 @@
-import time
 import random
+from AI.alpha_beta import alpha_beta
 
 def format_moves_for_response(moves):
     return [[source[0],source[1],nb,dest[0],dest[1]] for source,nb,dest in moves]
 
 
 def compute_next_move(game_state):
-    time.sleep(1)
-    moves_possibilities = list(game_state.get_possible_moves())
-    moves = random.choice(moves_possibilities)
-    return len(moves), format_moves_for_response(moves)
+    score,move = alpha_beta(game_state,2)
+    return len(move), format_moves_for_response(move)
