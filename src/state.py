@@ -5,8 +5,11 @@ class GameState:
     def __init__(self):
         self.STATE = None
         self.TEAM = None
+        self.ENEMY_TEAM = None
         self.START = None
         self.TEAM_POSITIONS = set()
+        self.ENEMY_POSITIONS = set()
+        self.HUMAN_POSITIONS = set()
 
     def set_board(self,size):
         n,m = size
@@ -21,6 +24,14 @@ class GameState:
                 self.TEAM_POSITIONS.add((i,j))
             if people[self.TEAM] == 0 and self.STATE[i,j,self.TEAM] > 0:
                 self.TEAM_POSITIONS.remove((i,j))
+            if people[self.ENEMY_TEAM] > 0 and self.STATE[i,j,self.ENEMY_TEAM] == 0:
+                self.ENEMY_POSITIONS.add((i,j))
+            if people[self.ENEMY_TEAM] == 0 and self.STATE[i,j,self.ENEMY_TEAM] > 0:
+                self.ENEMY_POSITIONS.remove((i,j))
+            if people[0] > 0 and self.STATE[i,j,0] == 0:
+                self.HUMAN_POSITIONS.add((i,j))
+            if people[0] == 0 and self.STATE[i,j,0] > 0:
+                self.HUMAN_POSITIONS.remove((i,j))
             self.STATE[i,j,:] = people
 
 
@@ -29,15 +40,18 @@ class GameState:
         self.START = start
 
     def init_board(self,changes):
-        for i,j,a,b,c in changes:
-            self.STATE[i,j,:] = [a,b,c]        
         # At the start we need to get which team we are in with the start position
         i,j = self.START
-        if self.STATE[i,j,1] > 1:
-            self.TEAM = 1
-        elif self.STATE[i,j,1] > 2:
-            self.TEAM = 2
-        else: raise Exception("We don't have a team !! :(")
+        for i2,j2,_,b,c in changes:
+            if i == i2 and j == j2 and b > 1:
+                self.TEAM = 1
+                self.ENEMY_TEAM = 2
+                break
+            if  i == i2 and j == j2 and c > 1:
+                self.TEAM = 2
+                self.ENEMY_TEAM = 1
+                break
+        self.update_board(changes)
 
     def update_game_state(self,message):
         message_handler = {
