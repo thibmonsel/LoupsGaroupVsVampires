@@ -17,8 +17,11 @@ class GameState:
         copy = GameState()
         copy.STATE = np.copy(self.STATE)
         copy.TEAM = self.TEAM
+        copy.ENEMY_TEAM = self.ENEMY_TEAM
         copy.START = self.START
         copy.TEAM_POSITIONS = self.TEAM_POSITIONS.copy()
+        copy.ENEMY_POSITIONS = self.ENEMY_POSITIONS.copy()
+        copy.HUMAN_POSITIONS = self.HUMAN_POSITIONS.copy()
         return copy
 
     def set_board(self,size):
@@ -219,6 +222,7 @@ class GameState:
 
         #Change the player after the move has been done        
         for _,state in states:
-            state.TEAM = 3-state.TEAM
+            state.TEAM, state.ENEMY_TEAM = state.ENEMY_TEAM, state.TEAM
+            state.TEAM_POSITIONS, state.ENEMY_POSITIONS = state.ENEMY_POSITIONS, state.TEAM_POSITIONS
         return states
 
