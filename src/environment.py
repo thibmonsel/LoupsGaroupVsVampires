@@ -29,7 +29,12 @@ class Environment:
         
         self.width = width
         self.height = height
-        self.map = np.array([[[0, 0, 0]]*width]*height)
+        self.races = ['humans', 'vampires', 'werewolves']
+        self.map = {
+            'humans': set(),
+            'vampires': set(),
+            'werewolves': set()
+        }
 
         if n_homes is None:
             n_homes = np.random.randint(MINIMUM_HOMES, MAXIMUM_HOMES)
@@ -39,11 +44,11 @@ class Environment:
 
         for child in root:
             if child.tag == 'Humans':
-                self.map[int(child.attrib['Y'])][int(child.attrib['X'])][0] = int(child.attrib['Count'])
+                self.map['humans'].add((int(child.attrib['X']), int(child.attrib['Y']), int(child.attrib['Count'])))
             if child.tag == 'Vampires':
-                self.map[int(child.attrib['Y'])][int(child.attrib['X'])][1] = int(child.attrib['Count'])
+                self.map['vampires'].add((int(child.attrib['X']), int(child.attrib['Y']), int(child.attrib['Count'])))
             if child.tag == 'Werewolves':
-                self.map[int(child.attrib['Y'])][int(child.attrib['X'])][2] = int(child.attrib['Count'])
+                self.map['werewolves'].add((int(child.attrib['X']), int(child.attrib['Y']), int(child.attrib['Count'])))
         
         os.remove('map.xml')
     
@@ -54,22 +59,25 @@ class Environment:
         """Compute number of groups of units a player has
 
         Args:
-            player (int): Number of the player (must be in [1, 2])
+            player (str): Name of the player (must be in ['vampires', 'werewolves'])
 
         Returns:
             int: The number of groups
         """
-        number_groups = 0
-        for x in range(self.width):
-            for y in range(self.height):
-                number_groups += int(self.map[y][x][player] > 0)
-        return number_groups
+        return len(self.map[player])
     
+    def find_group(self, x, y):
+        for race in self.races:
+            for (x_unit, y_unit, number) in self.map[race]:
+                if x == x_unit and y == y_unit:
+                    return (race, number)
+        return (None, 0)
+
     def next_step(self, player, moves):
         """Compute the state of the next step
 
         Args:
-            player (int): Number of the player (must be in [1, 2])
+            player (str): Name of the player (must be in ['vampires', 'werewolves'])
             moves (list): List of moves
 
         Raises:
@@ -82,81 +90,141 @@ class Environment:
         Returns:
             array: Resulting map
         """
-        ennemy_player = 2 - player
+        result_model = {
+            'lost_units': 0,
+            'converted_humans': 0,
+            'killed_humans': 0,
+            'killed_enemies': 0
+        }
+
+        results = list()
+
+        enemy_player = 'vampires' if player == 'werewolves' else 'werewolves'
 
         if len(moves) == 0:
             raise RuntimeError('Illegal move: there must be at least one move')
 
-        number_groups = self.compute_number_groups(player)
-        if len(moves) > number_groups:
-            raise RuntimeError('Illegal move: the number of moves must be less than your number of groups')
+        # number_groups = self.compute_number_groups(player)
+        # if len(moves) > number_groups:
+        #     raise RuntimeError('Illegal move: the number of moves must be less than your number of groups')
+
+        move_ends = list()
 
         for (x_start, y_start), n_units, (x_end, y_end) in moves:
             if x_start == x_end and y_start == y_end:
                 raise RuntimeError('Illegal move: start and end must be different positions')
             elif abs(x_start - x_end) > 1 or abs(y_start - y_end) > 1:
                 raise RuntimeError('Illegal move: end is unreachable from start')
-            elif self.map[y_start][x_start][player] < n_units:
+            elif (x_start, y_start) in move_ends:
+                raise RuntimeError('Illegal move: start can not be the end position of another move')
+            
+            race_start, n_units_start = self.find_group(x_start, y_start)
+
+            if race_start != player or n_units_start < n_units:
                 raise RuntimeError('Illegal move: not enough available units')
             else:
-                destination_content = self.map[y_end][x_end]
+                move_ends.append((x_end, y_end))
 
-                # If there are no units or allied units
-                if destination_content == [0, 0, 0] or destination_content[player] > 0:
-                    self.map[y_end][x_end][player] += n_units
-                    self.map[y_start][x_start][player] -= n_units
+                result = result_model.copy()
+                race_end, n_units_end = self.find_group(x_end, y_end)
+
+                # If there are no units
+                if race_end == None:
+                    self.map[player].add((x_end, y_end, n_units))
+                    self.map[player].remove((x_start, y_start, n_units_start))
+                    if n_units_start - n_units > 0:
+                        self.map[player].add((x_start, y_start, n_units_start - n_units))
+
+                # If there are allied units
+                if race_end == player:
+                    self.map[player].remove((x_end, y_end, n_units_end))
+                    self.map[player].add((x_end, y_end, n_units + n_units_end))
+                    self.map[player].remove((x_start, y_start, n_units_start))
+                    if n_units_start - n_units > 0:
+                        self.map[player].add((x_start, y_start, n_units_start - n_units))
                 
                 # If there are humans
-                elif destination_content[0] > 0:
-                    n_humans = destination_content[0]
+                elif race_end == 'humans':
 
                     # No battle
-                    if n_units >= n_humans:
-                        self.map[y_end][x_end] = [0, 0, 0]
-                        self.map[y_end][x_end][player] = n_units + n_humans
-                        self.map[y_start][x_start][player] -= n_units
+                    if n_units >= n_units_end:
+                        self.map['humans'].remove((x_end, y_end, n_units_end))
+                        self.map[player].add((x_end, y_end, n_units + n_units_end))
+                        self.map[player].remove((x_start, y_start, n_units_start))
+                        if n_units_start - n_units > 0:
+                            self.map[player].add((x_start, y_start, n_units_start - n_units))
+
+                        result['converted_humans'] += n_units_end
                     
                     # Battle
                     else:
-                        p = n_units / (2 * n_humans)
+                        p = n_units / (2 * n_units_end)
                         victory = np.random.random() < p
                         if victory:
                             n_survivors = sum(np.random.rand((n_units)) < p)
-                            n_converted = sum(np.random.rand((n_humans)) < p)
+                            n_converted = sum(np.random.rand((n_units_end)) < p)
                             
-                            self.map[y_end][x_end] = [0, 0, 0]
-                            self.map[y_end][x_end][player] = n_survivors + n_converted
-                            self.map[y_start][x_start][player] -= n_units
-                        else:
-                            n_survivors = sum(np.random.rand((n_humans)) < 1 - p)
+                            self.map['humans'].remove((x_end, y_end, n_units_end))
+                            self.map[player].add((x_end, y_end, n_survivors + n_converted))
+                            self.map[player].remove((x_start, y_start, n_units_start))
+                            if n_units_start - n_units > 0:
+                                self.map[player].add((x_start, y_start, n_units_start - n_units))
 
-                            self.map[y_end][x_end][0] = n_survivors
-                            self.map[y_start][x_start][player] -= n_units
+                            result['converted_humans'] += n_converted
+                            result['killed_humans'] += n_units_end - n_converted
+                            result['lost_units'] += n_units - n_survivors
+                        else:
+                            n_survivors = sum(np.random.rand((n_units_end)) < 1 - p)
+
+                            self.map['humans'].remove((x_end, y_end, n_units_end))
+                            self.map['humans'].add((x_end, y_end, n_survivors))
+                            self.map[player].remove((x_start, y_start, n_units_start))
+                            if n_units_start - n_units > 0:
+                                self.map[player].add((x_start, y_start, n_units_start - n_units))
+                            
+                            result['lost_units'] += n_units
+                            result['killed_humans'] += n_units_end - n_survivors
                 
                 # If there are enemies
-                elif destination_content[ennemy_player] > 0:
-                    n_ennemies = destination_content[ennemy_player]
-
+                elif race_end == enemy_player:
+                    
                     # No battle
-                    if n_units >= 1.5 * n_ennemies:
-                        self.map[y_end][x_end] = [0, 0, 0]
-                        self.map[y_end][x_end][player] = n_units
-                        self.map[y_start][x_start][player] -= n_units
+                    if n_units >= 1.5 * n_units_end:
+                        self.map[enemy_player].remove((x_end, y_end, n_units_end))
+                        self.map[player].add((x_end, y_end, n_units))
+                        self.map[player].remove((x_start, y_start, n_units_start))
+                        if n_units_start - n_units > 0:
+                            self.map[player].add((x_start, y_start, n_units_start - n_units))
+
+                        result['killed_enemies'] += n_units_end
                     
                     # Battle
                     else:
-                        p = n_units / (2 * n_ennemies)
+                        p = n_units / (2 * n_units_end)
                         victory = np.random.random() < p
                         if victory:
                             n_survivors = sum(np.random.rand((n_units)) < p)
+
+                            self.map[enemy_player].remove((x_end, y_end, n_units_end))
+                            self.map[player].add((x_end, y_end, n_survivors))
+                            self.map[player].remove((x_start, y_start, n_units_start))
+                            if n_units_start - n_units > 0:
+                                self.map[player].add((x_start, y_start, n_units_start - n_units))
                             
-                            self.map[y_end][x_end] = [0, 0, 0]
-                            self.map[y_end][x_end][player] = n_survivors
-                            self.map[y_start][x_start][player] -= n_units
+                            result['lost_units'] += n_units - n_survivors
+                            result['killed_enemies'] += n_units_end
                         else:
-                            n_survivors = sum(np.random.rand((n_ennemies)) < 1 - p)
+                            n_survivors = sum(np.random.rand((n_units_end)) < 1 - p)
 
-                            self.map[y_end][x_end][0] = n_survivors
-                            self.map[y_start][x_start][player] -= n_units
+                            self.map[enemy_player].remove((x_end, y_end, n_units_end))
+                            self.map[enemy_player].add((x_end, y_end, n_survivors))
+                            self.map[player].remove((x_start, y_start, n_units_start))
+                            if n_units_start - n_units > 0:
+                                self.map[player].add((x_start, y_start, n_units_start - n_units))
+                            
+                            result['lost_units'] += n_units
+                            result['killed_enemies'] += n_units_end - n_survivors
 
-        return self.map      
+            results.append(result)
+
+        return results
