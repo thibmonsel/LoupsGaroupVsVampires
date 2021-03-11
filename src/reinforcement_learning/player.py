@@ -6,6 +6,7 @@ from itertools import chain
 import torch
 from torch import nn
 
+from src.environment import Environment
 from src.reinforcement_learning.memory import Memory
 
 class Player:
@@ -50,13 +51,13 @@ class Player:
             lr=lr
         )
 
-    def encode_environment(self, 
-                           environment: Dict[str, Set[Tuple]], 
+    def encode_map(self, 
+                           map: Dict[str, Set[Tuple]], 
                            group: Tuple):
         (x, y, _) = group
 
         humans = list()
-        for (x_humans, y_humans, n_humans) in environment['humans']:
+        for (x_humans, y_humans, n_humans) in map['humans']:
             humans.append((x_humans - x, y_humans - y, n_humans))
         
         humans.sort(key=lambda item: max(abs(item[0]), abs(item[1])))
@@ -64,7 +65,7 @@ class Player:
         humans += [(0, 0, 0)]*(self.max_len_seen_humans - len(humans))
         
         enemies = list()
-        for (x_enemies, y_enemies, n_enemies) in environment[self.enemy_player]:
+        for (x_enemies, y_enemies, n_enemies) in map[self.enemy_player]:
             enemies.append((x_enemies - x, y_enemies - y, n_enemies))
         
         enemies.sort(key=lambda item: max(abs(item[0]), abs(item[1])))
@@ -89,7 +90,10 @@ class Player:
         return outputs
 
     def predict_one(self, input):
-        pass
+        with torch.no_grad():
+            output = self.forward(input)
+            move = torch.argmax(output)
+        return move
 
     def predict_batch(self, inputs):
         outputs = self.forward(inputs)
@@ -104,13 +108,77 @@ class Player:
 
 
     def choose_move(self,
-                    environment: Dict[str, Set[Tuple]], 
+                    map: Dict[str, Set[Tuple]], 
                     group: Tuple):
         if np.random.random() < self.epsilon:
             return np.random.randint(0, self.n_possible_moves)
         
-        input = self.encode_environment(environment, group)
+        input = self.encode_map(map, group)
         return self.predict_one(input)
+    
+    def play(self, environment: Environment):
+        move_to_tuple = [
+            (-1, -1), (0, -1), (1, -1), 
+            (1, 0), 
+            (1, 1), (0, 1), (-1, 1), 
+            (-1, 0)
+        ]
+        moves = list()
+        for (x, y, n_units) in environment.map[self.player]:
+            move = self.choose_move(environment.map, (x, y, n_units))
+
+            # The moves correspond to the following pattern:
+
+            # +---+---+---+
+            # | 0 | 1 | 2 |
+            # +---+---+---+
+            # | 7 | X | 3 |
+            # +---+---+---+
+            # | 6 | 5 | 4 |
+            # +---+---+---+
+
+            # We have to handle illegal moves (that make a group go out of 
+            # the board)
+
+            # Corners
+            if x == 0 and y == 0 and (move <= 2 or move >= 6):
+                move = 3
+            elif x == environment.width and y == 0 and move <= 4:
+                move = 5
+            elif x == environment.width and y == environment.height and 2 <= move <= 6:
+                move = 7
+            elif x == 0 and y == environment.height and (move == 0 or move >= 4):
+                move = 1
+            
+            # Border line
+            elif y == 0 and move <= 2:
+                if move == 0:
+                    move = 7
+                else:
+                    move = 3
+            elif y == environment.height and 4 <= move <= 6:
+                if move == 4:
+                    move = 3
+                else:
+                    move = 7
+            elif x == 0 and (move == 0 or move >= 6):
+                if move == 6:
+                    move = 5
+                else:
+                    move = 1
+            elif x == environment.width and 2 <= move <= 4:
+                if move == 2:
+                    move = 1
+                else:
+                    move = 5
+            
+            tuple_move = move_to_tuple[move]
+            moves.append(((x, y), 
+                          n_units, 
+                          (x + tuple_move[0], y + tuple_move[1])))
+        
+        return moves
+
     
     def replay(self):
         batch = self.memory.sample(self.batch_size)
