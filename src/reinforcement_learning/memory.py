@@ -12,5 +12,9 @@ class Memory:
             self._samples.pop(0)
     
     def sample(self, num_samples):
-        return np.random.sample(self._samples,
-                                min(num_samples, len(self._samples)))
+        return [
+            self._samples[index] 
+            for index in np.random.choice(len(self._samples),
+                                          min(num_samples, 
+                                              len(self._samples)))
+        ]
