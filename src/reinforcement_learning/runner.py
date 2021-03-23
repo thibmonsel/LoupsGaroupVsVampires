@@ -35,31 +35,33 @@ class Runner:
                     self.players[current_player].player, 
                     moves
                 )
-                maps = [initial_map] + maps
-                rewards = self.players[current_player].compute_rewards(results)
 
-                encoded_initial_map = self.players[current_player].encode_map(
-                        maps[0], 
-                        (moves[0][0][0], moves[0][0][1], moves[0][1])
-                    )
+                if self.players[current_player].is_trainable:
+                    maps = [initial_map] + maps
+                    rewards = self.players[current_player].compute_rewards(results)
 
-                for index in range(len(indexes)):
+                    encoded_initial_map = self.players[current_player].encode_map(
+                            maps[0], 
+                            (moves[0][0][0], moves[0][0][1], moves[0][1])
+                        )
+
+                    for index in range(len(indexes)):
+                        
+                        encoded_final_map = self.players[current_player].encode_map(
+                            maps[index], 
+                            (moves[index][0][0], moves[index][0][1], moves[index][1])
+                        )
+
+                        self.players[current_player].memory.add_sample(
+                            (encoded_initial_map, 
+                            indexes[index], 
+                            rewards[index], 
+                            encoded_final_map)
+                        )
+
+                        encoded_initial_map = encoded_final_map
                     
-                    encoded_final_map = self.players[current_player].encode_map(
-                        maps[index], 
-                        (moves[index][0][0], moves[index][0][1], moves[index][1])
-                    )
-
-                    self.players[current_player].memory.add_sample(
-                        (encoded_initial_map, 
-                         indexes[index], 
-                         rewards[index], 
-                         encoded_final_map)
-                    )
-
-                    encoded_initial_map = encoded_final_map
-                
-                self.players[current_player].replay()
+                    self.players[current_player].replay()
 
                 step += 1
                 current_player = 1 - current_player
@@ -67,8 +69,10 @@ class Runner:
             for player in self.players:
                 print(f"{player.player}: cumulated reward = {player.cumulated_reward}")
                 player.reset_cumulated_reward()
-                player.update_epsilon(n_game)
+                
+                if player.is_trainable:
+                    player.update_epsilon(n_game)
             
             print('')
-            
+
             self.first_player = 1 - self.first_player

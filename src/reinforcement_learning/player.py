@@ -11,9 +11,17 @@ from src.reinforcement_learning.memory import Memory
 
 class Player:
 
-    def __init__(self, player: str, max_memory: int, batch_size: int, 
-                 max_epsilon: float, min_epsilon: float, decay: float, 
-                 gamma: float, lr: float):
+    def __init__(self, 
+                 player: str, 
+                 is_random: bool = False, 
+                 is_trainable: bool = True, 
+                 max_memory: int = None, 
+                 batch_size: int = None, 
+                 max_epsilon: float = None, 
+                 min_epsilon: float = None, 
+                 decay: float = None, 
+                 gamma: float = None, 
+                 lr: float = None):
         self.player = player
         self.enemy_player = 'vampires' if player == 'werewolves' else 'werewolves'
 
@@ -21,40 +29,53 @@ class Player:
         self.max_len_seen_enemies = 10
         self.n_possible_moves = 8
 
-        self.memory = Memory(max_memory)
-        self.batch_size = batch_size
+        self.is_random = is_random
+        self.is_trainable = is_trainable and not self.is_random
 
-        self.max_epsilon = max_epsilon
-        self.min_epsilon = min_epsilon
-        self.epsilon = max_epsilon
-        self.decay = decay
-        self.gamma = gamma
+        if not self.is_random and self.is_trainable:
+            assert (max_memory is not None and
+                batch_size is not None and
+                max_epsilon is not None and
+                min_epsilon is not None and
+                decay is not None and
+                gamma is not None and
+                lr is not None), "Some parameters are missing"
 
-        self.size_input = (self.max_len_seen_humans + self.max_len_seen_enemies) * 3
-        self.size_fc_1 = 100
-        self.size_fc_2 = 100
+        if not self.is_random:
+            self.memory = Memory(max_memory)
+            self.batch_size = batch_size
 
-        self.relu = torch.nn.ReLU()
-        self.fc_1 = nn.Linear(
-            self.size_input, 
-            self.size_fc_1
-        )
-        self.fc_2 = nn.Linear(
-            self.size_fc_1, 
-            self.size_fc_2
-        )
-        self.fc_3 = nn.Linear(
-            self.size_fc_2, 
-            self.n_possible_moves
-        )
+            self.max_epsilon = max_epsilon
+            self.min_epsilon = min_epsilon
+            self.epsilon = max_epsilon
+            self.decay = decay
+            self.gamma = gamma
 
-        self.lr = lr
-        self.optimizer = torch.optim.AdamW(
-            chain(self.fc_1.parameters(), 
-                  self.fc_2.parameters(), 
-                  self.fc_3.parameters()), 
-            lr=lr
-        )
+            self.size_input = (self.max_len_seen_humans + self.max_len_seen_enemies) * 3
+            self.size_fc_1 = 100
+            self.size_fc_2 = 100
+
+            self.relu = torch.nn.ReLU()
+            self.fc_1 = nn.Linear(
+                self.size_input, 
+                self.size_fc_1
+            )
+            self.fc_2 = nn.Linear(
+                self.size_fc_1, 
+                self.size_fc_2
+            )
+            self.fc_3 = nn.Linear(
+                self.size_fc_2, 
+                self.n_possible_moves
+            )
+
+            self.lr = lr
+            self.optimizer = torch.optim.AdamW(
+                chain(self.fc_1.parameters(), 
+                    self.fc_2.parameters(), 
+                    self.fc_3.parameters()), 
+                lr=lr
+            )
 
         self.reward_attribution = {
             'nothing': -1,
@@ -122,7 +143,7 @@ class Player:
     def choose_move(self,
                     map: Dict[str, Set[Tuple]], 
                     group: Tuple):
-        if np.random.random() < self.epsilon:
+        if np.random.random() < self.epsilon or self.is_random:
             return np.random.randint(0, self.n_possible_moves)
         
         input = self.encode_map(map, group)
