@@ -1,6 +1,29 @@
-from src.environment import Environment
+from src.reinforcement_learning.runner import Runner
+from src.reinforcement_learning.player import Player
 
-# To test environment generation
-environment = Environment()
-environment.generate_map()
-environment.print_map()
+# RL test
+
+player_1 = Player(
+    'vampires', 
+    max_memory=1000, 
+    batch_size=10, 
+    max_epsilon=0.5, 
+    min_epsilon=0.001,
+    decay=0.0001,
+    gamma=0.99,
+    lr=1e-4
+)
+
+player_2 = Player(
+    'werewolves', 
+    max_memory=1000, 
+    batch_size=10, 
+    max_epsilon=0.5, 
+    min_epsilon=0.001,
+    decay=0.0001,
+    gamma=0.99,
+    lr=1e-4
+)
+
+runner = Runner(player_1, player_2, n_games=2, limit_rounds=50)
+runner.run()
