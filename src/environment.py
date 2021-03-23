@@ -3,6 +3,8 @@ import os
 import numpy as np
 import xml.etree.ElementTree as ET
 
+from copy import deepcopy
+
 MINIMUM_SIZE = 5
 MAXIMUM_SIZE = 40
 MINIMUM_HOMES = 2
@@ -11,10 +13,34 @@ MAXIMUM_HOMES = 10
 class Environment:
     def __init__(self):
         self.map = None
+        self.races = ['humans', 'vampires', 'werewolves']
         self.width = None
         self.height = None
+        self.current_step = None
+        self.limit_steps = None
+    
+    def initialize_game(self, limit_rounds: int = None, width: int = None, 
+                        height: int = None, n_homes: int = None):
+        """Initialize a game by generating map and resetting steps counter
 
-    def generate_map(self, width=None, height=None, n_homes=None):
+        Args:
+            limit_rounds (int, optional): Number of rounds (a round contains 
+                the turn of both players). When the game reaches this limit, 
+                it is considered as finished. If `None`, there is no limit. 
+                Defaults to None.
+            width (int, optional): Width of the map. Defaults to None.
+            height (int, optional): Height of the map. Defaults to None.
+            n_homes (int, optional): Number of homes. Defaults to None.
+        """
+        self.generate_map(width=width, height=height, n_homes=n_homes)
+        
+        if limit_rounds is not None:
+            self.limit_steps = limit_rounds * 2
+        self.current_step = 0
+        
+
+    def generate_map(self, width: int = None, height: int = None, 
+                     n_homes: int = None):
         """Generate map using `MapGenerator.exe` executable
 
         Args:
@@ -29,7 +55,6 @@ class Environment:
         
         self.width = width
         self.height = height
-        self.races = ['humans', 'vampires', 'werewolves']
         self.map = {
             'humans': set(),
             'vampires': set(),
@@ -98,6 +123,7 @@ class Environment:
         }
 
         results = list()
+        maps = list()
 
         enemy_player = 'vampires' if player == 'werewolves' else 'werewolves'
 
@@ -226,5 +252,17 @@ class Environment:
                             result['killed_enemies'] += n_units_end - n_survivors
 
             results.append(result)
+            maps.append(deepcopy(self.map))
 
-        return results
+        self.current_step += 1
+
+        return results, maps
+
+    def is_game_finished(self) -> bool:
+        if self.limit_steps is not None and self.current_step >= self.limit_steps:
+            return True
+        
+        if len(self.map['vampires']) == 0 or len(self.map['werewolves']) == 0:
+            return True
+        
+        return False
