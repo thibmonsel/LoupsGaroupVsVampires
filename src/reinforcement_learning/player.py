@@ -63,6 +63,7 @@ class Player:
             'killed_humans': 0,
             'killed_enemies': 20
         }
+        self.cumulated_reward = 0
 
     def encode_map(self, 
                    map: Dict[str, Set[Tuple]], 
@@ -229,7 +230,7 @@ class Player:
         self.epsilon = self.min_epsilon + \
             (self.max_epsilon - self.min_epsilon)*np.exp(- self.decay * steps)
     
-    def compute_rewards(self, results: List[Dict[str, int]]) -> List[int]:
+    def compute_rewards(self, results: List[Dict[str, int]], update_reward=True) -> List[int]:
         rewards = list()
 
         for result in results:
@@ -242,4 +243,10 @@ class Player:
                     reward += result[key] * self.reward_attribution[key]
                 rewards.append(reward)
         
+        if update_reward:
+            self.cumulated_reward += sum(rewards)
+
         return rewards
+    
+    def reset_cumulated_reward(self):
+        self.cumulated_reward = 0

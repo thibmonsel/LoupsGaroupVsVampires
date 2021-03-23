@@ -21,7 +21,7 @@ class Runner:
     def run(self):
         
         for n_game in range(self.n_games):
-            print(f"Playing game n°{n_game}\n")
+            print(f"Playing game n°{n_game}")
 
             self.environment.initialize_game(limit_rounds=self.limit_rounds)
 
@@ -65,6 +65,10 @@ class Runner:
                 current_player = 1 - current_player
 
             for player in self.players:
+                print(f"{player.player}: cumulated reward = {player.cumulated_reward}")
+                player.reset_cumulated_reward()
                 player.update_epsilon(n_game)
+            
+            print('')
             
             self.first_player = 1 - self.first_player
