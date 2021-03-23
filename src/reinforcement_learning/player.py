@@ -1,6 +1,6 @@
 import numpy as np
 
-from typing import Dict, Set, Tuple
+from typing import Dict, List, Set, Tuple
 from itertools import chain
 
 import torch
@@ -11,7 +11,9 @@ from src.reinforcement_learning.memory import Memory
 
 class Player:
 
-    def __init__(self, player: str, max_memory: int, batch_size: int, epsilon: float, gamma: float, lr: float):
+    def __init__(self, player: str, max_memory: int, batch_size: int, 
+                 max_epsilon: float, min_epsilon: float, decay: float, 
+                 gamma: float, lr: float):
         self.player = player
         self.enemy_player = 'vampires' if player == 'werewolves' else 'werewolves'
 
@@ -22,7 +24,10 @@ class Player:
         self.memory = Memory(max_memory)
         self.batch_size = batch_size
 
-        self.epsilon = epsilon
+        self.max_epsilon = max_epsilon
+        self.min_epsilon = min_epsilon
+        self.epsilon = max_epsilon
+        self.decay = decay
         self.gamma = gamma
 
         self.size_input = (self.max_len_seen_humans + self.max_len_seen_enemies) * 3
@@ -51,9 +56,17 @@ class Player:
             lr=lr
         )
 
+        self.reward_attribution = {
+            'nothing': -1,
+            'lost_units': -10,
+            'converted_humans': 15,
+            'killed_humans': 0,
+            'killed_enemies': 20
+        }
+
     def encode_map(self, 
-                           map: Dict[str, Set[Tuple]], 
-                           group: Tuple):
+                   map: Dict[str, Set[Tuple]], 
+                   group: Tuple):
         (x, y, _) = group
 
         humans = list()
@@ -83,7 +96,7 @@ class Player:
         outputs = self.fc_3(outputs)
 
         if rewards is not None:
-            criterion = nn.CrossEntropyLoss()
+            criterion = nn.MSELoss()
             loss = criterion(outputs, rewards)
             return loss
         
@@ -91,13 +104,11 @@ class Player:
 
     def predict_one(self, input):
         with torch.no_grad():
-            output = self.forward(input)
-            move = torch.argmax(output)
-        return move
+            return self.forward(input)
 
     def predict_batch(self, inputs):
-        outputs = self.forward(inputs)
-        return torch.argmax(outputs, dim=1)
+        return self.forward(inputs)
+        # torch.argmax(outputs, dim=1)
 
 
     def train(self, X, y):
@@ -114,7 +125,8 @@ class Player:
             return np.random.randint(0, self.n_possible_moves)
         
         input = self.encode_map(map, group)
-        return self.predict_one(input)
+        output = self.predict_one(input)
+        return torch.argmax(output)
     
     def play(self, environment: Environment):
         move_to_tuple = [
@@ -124,8 +136,10 @@ class Player:
             (-1, 0)
         ]
         moves = list()
+        indexes = list()
         for (x, y, n_units) in environment.map[self.player]:
             move = self.choose_move(environment.map, (x, y, n_units))
+            indexes.append(move)
 
             # The moves correspond to the following pattern:
 
@@ -177,24 +191,26 @@ class Player:
                           n_units, 
                           (x + tuple_move[0], y + tuple_move[1])))
         
-        return moves
+        return indexes, moves
 
     
     def replay(self):
         batch = self.memory.sample(self.batch_size)
 
-        states = np.array([item[0] for item in batch])
-        next_states = np.array(
-                [(np.zeros(self.size_input) if item[3] is None
-                                                    else item[3])
-                 for item in batch])
+        states = torch.stack([item[0] for item in batch])
+        
+        next_states = torch.stack(
+            [(torch.zeros(self.size_input) if item[3] is None
+                                            else item[3])
+                for item in batch]
+        )
         
         with torch.no_grad():
             q_s_a = self.predict_batch(states)
             q_s_a_d = self.predict_batch(next_states)
         
-        X = np.zeros((len(batch), self.size_input))
-        y = np.zeros((len(batch), self.n_possible_moves))
+        X = torch.zeros((len(batch), self.size_input))
+        y = torch.zeros((len(batch), self.n_possible_moves))
         
         for i, b in enumerate(batch):
             state, action, reward, next_state = b[0], b[1], b[2], b[3]
@@ -203,9 +219,27 @@ class Player:
             if next_state is None:
                 current_q[action] = reward
             else:
-                current_q[action] = reward + self.gamma*np.amax(q_s_a_d[i])
+                current_q[action] = reward + self.gamma*torch.argmax(q_s_a_d[i])
             X[i] = state
             y[i] = current_q
             
         self.train(X, y)
 
+    def update_epsilon(self, steps):
+        self.epsilon = self.min_epsilon + \
+            (self.max_epsilon - self.min_epsilon)*np.exp(- self.decay * steps)
+    
+    def compute_rewards(self, results: List[Dict[str, int]]) -> List[int]:
+        rewards = list()
+
+        for result in results:
+            if sum(result.values()) == 0:
+                rewards.append(self.reward_attribution['nothing'])
+            
+            else:
+                reward = 0
+                for key in result.keys():
+                    reward += result[key] * self.reward_attribution[key]
+                rewards.append(reward)
+        
+        return rewards
