@@ -266,3 +266,10 @@ class Environment:
             return True
         
         return False
+    
+    def winner(self) -> str:
+        if len(self.map['vampires']) == 0:
+            return 'werewolves'
+        if len(self.map['werewolves']) == 0:
+            return 'vampires'
+        return None

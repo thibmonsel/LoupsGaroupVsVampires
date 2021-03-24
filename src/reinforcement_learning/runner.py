@@ -1,6 +1,8 @@
+import matplotlib.pyplot as plt
 import numpy as np
 
 from copy import deepcopy
+from tqdm import tqdm
 
 from src.reinforcement_learning.player import Player
 from src.environment import Environment
@@ -20,8 +22,7 @@ class Runner:
 
     def run(self):
         
-        for n_game in range(self.n_games):
-            print(f"Playing game n°{n_game}")
+        for n_game in tqdm(range(self.n_games)):
 
             self.environment.initialize_game(limit_rounds=self.limit_rounds)
 
@@ -37,7 +38,7 @@ class Runner:
                 )
 
                 rewards = self.players[current_player].compute_rewards(results)
-                
+
                 if self.players[current_player].is_trainable:
                     maps = [initial_map] + maps
 
@@ -66,14 +67,57 @@ class Runner:
 
                 step += 1
                 current_player = 1 - current_player
+            
+            winner = self.environment.winner()
 
             for player in self.players:
-                print(f"{player.player}: cumulated reward = {player.cumulated_reward}")
-                player.reset_cumulated_reward()
+                player.save_statistics(winner)
                 
                 if player.is_trainable:
                     player.update_epsilon(n_game)
-            
-            print('')
 
             self.first_player = 1 - self.first_player
+    
+    def plot_results(self, all_time_result=False):
+        t = range(self.n_games)
+
+        player_1_legend = 'Player 1'
+        if self.player_1.is_random:
+            player_1_legend += ' (random)'
+        elif not self.player_1.is_trainable:
+            player_1_legend += ' (not trainable)'
+        
+        player_2_legend = 'Player 2'
+        if self.player_2.is_random:
+            player_2_legend += ' (random)'
+        elif not self.player_2.is_trainable:
+            player_2_legend += ' (not trainable)'
+
+        plt.subplot(211)
+        plt.plot(t, self.player_1.cumulated_rewards[-self.n_games:], 'r')
+        plt.plot(t, self.player_2.cumulated_rewards[-self.n_games:], 'g')
+        plt.title('Rewards over time')
+        plt.legend([player_1_legend, player_2_legend])
+
+        len_mask = 20
+        if self.n_games > len_mask:
+            mask = np.ones((len_mask))
+            plt.subplot(212)
+            plt.plot(t, 
+                    np.concatenate((
+                        np.zeros((len_mask - 1)),
+                        np.convolve(self.player_1.score_rounds, 
+                                    mask, 
+                                    mode='valid') / len_mask)),
+                    'r')
+            plt.plot(t, 
+                    np.concatenate((
+                        np.zeros((len_mask - 1)),
+                        np.convolve(self.player_2.score_rounds, 
+                                    mask, 
+                                    mode='valid') / len_mask)),
+                    'g')
+            plt.title('Winning rounds over time')
+            plt.legend([player_1_legend, player_2_legend])
+
+        plt.show()

@@ -35,7 +35,6 @@ class Player:
         self.is_trainable = is_trainable and not self.is_random
 
         if not self.is_random and self.is_trainable and from_file is None:
-            print(f"From file: {from_file}")
             assert (max_memory is not None and
                 batch_size is not None and
                 max_epsilon is not None and
@@ -92,7 +91,9 @@ class Player:
         else:
             self.load(from_file)
         
-        self.cumulated_reward = 0
+        self.cumulated_rewards = list()
+        self.current_cumulated_reward = 0
+        self.score_rounds = list()
 
     def encode_map(self, 
                    map: Dict[str, Set[Tuple]], 
@@ -167,6 +168,10 @@ class Player:
         ]
         moves = list()
         indexes = list()
+        if len(environment.map[self.player]) > 1:
+            print(f"There are n_groups: {len(environment.map[self.player])}")
+            environment.print_map()
+        
         for (x, y, n_units) in environment.map[self.player]:
             move = self.choose_move(environment.map, (x, y, n_units))
             indexes.append(move)
@@ -273,12 +278,20 @@ class Player:
                 rewards.append(reward)
         
         if update_reward:
-            self.cumulated_reward += sum(rewards)
+            self.current_cumulated_reward += sum(rewards)
 
         return rewards
     
-    def reset_cumulated_reward(self):
-        self.cumulated_reward = 0
+    def save_statistics(self, winner):
+        self.cumulated_rewards.append(self.current_cumulated_reward)
+        self.current_cumulated_reward = 0
+        
+        if winner == self.player:
+            self.score_rounds.append(1)
+        elif winner is None:
+            self.score_rounds.append(0)
+        else:
+            self.score_rounds.append(-1)
 
     def save(self, filename):
         with open(f"saved_models/{filename}.pkl", 'wb') as file:
