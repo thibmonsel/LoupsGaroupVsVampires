@@ -97,11 +97,11 @@ class Player:
     def encode_map(self, 
                    map: Dict[str, Set[Tuple]], 
                    group: Tuple):
-        (x, y, _) = group
+        (x, y, n_units) = group
 
         humans = list()
         for (x_humans, y_humans, n_humans) in map['humans']:
-            humans.append((x_humans - x, y_humans - y, n_humans))
+            humans.append((x_humans - x, y_humans - y, n_humans / n_units))
         
         humans.sort(key=lambda item: max(abs(item[0]), abs(item[1])))
         humans = humans[:self.max_len_seen_humans]
@@ -109,7 +109,7 @@ class Player:
         
         enemies = list()
         for (x_enemies, y_enemies, n_enemies) in map[self.enemy_player]:
-            enemies.append((x_enemies - x, y_enemies - y, n_enemies))
+            enemies.append((x_enemies - x, y_enemies - y, n_enemies / n_units))
         
         enemies.sort(key=lambda item: max(abs(item[0]), abs(item[1])))
         enemies = enemies[:self.max_len_seen_enemies]
