@@ -6,8 +6,8 @@ from src.reinforcement_learning.player import Player
 player_1 = Player(
     'vampires', 
     # from_file='player_1'
-    max_memory=1000, 
-    batch_size=10, 
+    max_memory=50000, 
+    batch_size=20, 
     max_epsilon=0.5, 
     min_epsilon=0.001,
     decay=0.001,
