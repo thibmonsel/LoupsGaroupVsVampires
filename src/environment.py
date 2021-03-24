@@ -143,6 +143,8 @@ class Environment:
                 raise RuntimeError('Illegal move: end is unreachable from start')
             elif (x_start, y_start) in move_ends:
                 raise RuntimeError('Illegal move: start can not be the end position of another move')
+            elif n_units <= 0:
+                raise RuntimeError('Illegal move: number of units must be strictly positive')
             
             race_start, n_units_start = self.find_group(x_start, y_start)
 
@@ -191,7 +193,8 @@ class Environment:
                             n_converted = sum(np.random.rand((n_units_end)) < p)
                             
                             self.map['humans'].remove((x_end, y_end, n_units_end))
-                            self.map[player].add((x_end, y_end, n_survivors + n_converted))
+                            if n_survivors + n_converted > 0:
+                                self.map[player].add((x_end, y_end, n_survivors + n_converted))
                             self.map[player].remove((x_start, y_start, n_units_start))
                             if n_units_start - n_units > 0:
                                 self.map[player].add((x_start, y_start, n_units_start - n_units))
@@ -203,7 +206,8 @@ class Environment:
                             n_survivors = sum(np.random.rand((n_units_end)) < 1 - p)
 
                             self.map['humans'].remove((x_end, y_end, n_units_end))
-                            self.map['humans'].add((x_end, y_end, n_survivors))
+                            if n_survivors > 0:
+                                self.map['humans'].add((x_end, y_end, n_survivors))
                             self.map[player].remove((x_start, y_start, n_units_start))
                             if n_units_start - n_units > 0:
                                 self.map[player].add((x_start, y_start, n_units_start - n_units))
@@ -232,7 +236,8 @@ class Environment:
                             n_survivors = sum(np.random.rand((n_units)) < p)
 
                             self.map[enemy_player].remove((x_end, y_end, n_units_end))
-                            self.map[player].add((x_end, y_end, n_survivors))
+                            if n_survivors > 0:
+                                self.map[player].add((x_end, y_end, n_survivors))
                             self.map[player].remove((x_start, y_start, n_units_start))
                             if n_units_start - n_units > 0:
                                 self.map[player].add((x_start, y_start, n_units_start - n_units))
@@ -243,7 +248,8 @@ class Environment:
                             n_survivors = sum(np.random.rand((n_units_end)) < 1 - p)
 
                             self.map[enemy_player].remove((x_end, y_end, n_units_end))
-                            self.map[enemy_player].add((x_end, y_end, n_survivors))
+                            if n_survivors > 0:
+                                self.map[enemy_player].add((x_end, y_end, n_survivors))
                             self.map[player].remove((x_start, y_start, n_units_start))
                             if n_units_start - n_units > 0:
                                 self.map[player].add((x_start, y_start, n_units_start - n_units))

@@ -168,9 +168,6 @@ class Player:
         ]
         moves = list()
         indexes = list()
-        if len(environment.map[self.player]) > 1:
-            print(f"There are n_groups: {len(environment.map[self.player])}")
-            environment.print_map()
         
         for (x, y, n_units) in environment.map[self.player]:
             move = self.choose_move(environment.map, (x, y, n_units))
