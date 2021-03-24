@@ -1,4 +1,5 @@
 import numpy as np
+import pickle
 
 from typing import Dict, List, Set, Tuple
 from itertools import chain
@@ -13,6 +14,7 @@ class Player:
 
     def __init__(self, 
                  player: str, 
+                 from_file: str = None,
                  is_random: bool = False, 
                  is_trainable: bool = True, 
                  max_memory: int = None, 
@@ -29,10 +31,11 @@ class Player:
         self.max_len_seen_enemies = 10
         self.n_possible_moves = 8
 
-        self.is_random = is_random
+        self.is_random = is_random and from_file is None
         self.is_trainable = is_trainable and not self.is_random
 
-        if not self.is_random and self.is_trainable:
+        if not self.is_random and self.is_trainable and from_file is None:
+            print(f"From file: {from_file}")
             assert (max_memory is not None and
                 batch_size is not None and
                 max_epsilon is not None and
@@ -41,7 +44,7 @@ class Player:
                 gamma is not None and
                 lr is not None), "Some parameters are missing"
 
-        if not self.is_random:
+        if not self.is_random and from_file is None:
             self.memory = Memory(max_memory)
             self.batch_size = batch_size
 
@@ -77,13 +80,18 @@ class Player:
                 lr=lr
             )
 
-        self.reward_attribution = {
-            'nothing': -1,
-            'lost_units': -10,
-            'converted_humans': 15,
-            'killed_humans': 0,
-            'killed_enemies': 20
-        }
+        if from_file is None:
+            self.reward_attribution = {
+                'nothing': -1,
+                'lost_units': -10,
+                'converted_humans': 15,
+                'killed_humans': 0,
+                'killed_enemies': 20
+            }
+
+        else:
+            self.load(from_file)
+        
         self.cumulated_reward = 0
 
     def encode_map(self, 
@@ -143,7 +151,7 @@ class Player:
     def choose_move(self,
                     map: Dict[str, Set[Tuple]], 
                     group: Tuple):
-        if np.random.random() < self.epsilon or self.is_random:
+        if self.is_random or np.random.random() < self.epsilon:
             return np.random.randint(0, self.n_possible_moves)
         
         input = self.encode_map(map, group)
@@ -271,3 +279,11 @@ class Player:
     
     def reset_cumulated_reward(self):
         self.cumulated_reward = 0
+
+    def save(self, filename):
+        with open(f"saved_models/{filename}.pkl", 'wb') as file:
+            pickle.dump(self.__dict__, file)
+    
+    def load(self, filename):
+        with open(f"saved_models/{filename}.pkl", 'rb') as file:
+            self.__dict__.update(pickle.load(file))

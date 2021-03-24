@@ -36,9 +36,10 @@ class Runner:
                     moves
                 )
 
+                rewards = self.players[current_player].compute_rewards(results)
+                
                 if self.players[current_player].is_trainable:
                     maps = [initial_map] + maps
-                    rewards = self.players[current_player].compute_rewards(results)
 
                     encoded_initial_map = self.players[current_player].encode_map(
                             maps[0], 
