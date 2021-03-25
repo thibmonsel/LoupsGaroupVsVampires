@@ -119,7 +119,9 @@ class Environment:
             'lost_units': 0,
             'converted_humans': 0,
             'killed_humans': 0,
-            'killed_enemies': 0
+            'killed_enemies': 0,
+            'has_won': False,
+            'has_lost': False
         }
 
         results = list()
@@ -256,6 +258,12 @@ class Environment:
                             
                             result['lost_units'] += n_units
                             result['killed_enemies'] += n_units_end - n_survivors
+
+            winner = self.winner()
+            if winner == player:
+                result['has_won'] = True
+            elif winner is not None:
+                result['has_lost'] = False
 
             results.append(result)
             maps.append(deepcopy(self.map))
