@@ -99,25 +99,24 @@ class Runner:
         plt.title('Rewards over time')
         plt.legend([player_1_legend, player_2_legend])
 
-        len_mask = 20
-        if self.n_games > len_mask:
-            mask = np.ones((len_mask))
-            plt.subplot(212)
-            plt.plot(t, 
-                    np.concatenate((
-                        np.zeros((len_mask - 1)),
-                        np.convolve(self.player_1.score_rounds, 
-                                    mask, 
-                                    mode='valid') / len_mask)),
-                    'r')
-            plt.plot(t, 
-                    np.concatenate((
-                        np.zeros((len_mask - 1)),
-                        np.convolve(self.player_2.score_rounds, 
-                                    mask, 
-                                    mode='valid') / len_mask)),
-                    'g')
-            plt.title('Winning rounds over time')
-            plt.legend([player_1_legend, player_2_legend])
+        len_mask = 1 + self.n_games // 100
+        mask = np.ones((len_mask))
+        plt.subplot(212)
+        plt.plot(t, 
+                np.concatenate((
+                    np.zeros((len_mask - 1)),
+                    np.convolve(self.player_1.score_rounds[-self.n_games:], 
+                                mask, 
+                                mode='valid') / len_mask)),
+                'r')
+        plt.plot(t, 
+                np.concatenate((
+                    np.zeros((len_mask - 1)),
+                    np.convolve(self.player_2.score_rounds[-self.n_games:], 
+                                mask, 
+                                mode='valid') / len_mask)),
+                'g')
+        plt.title('Winning rounds over time')
+        plt.legend([player_1_legend, player_2_legend])
 
         plt.show()
