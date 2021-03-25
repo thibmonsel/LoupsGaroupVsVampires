@@ -28,7 +28,7 @@ class Player:
         self.enemy_player = 'vampires' if player == 'werewolves' else 'werewolves'
 
         self.max_len_seen_humans = 10
-        self.max_len_seen_enemies = 10
+        self.max_len_seen_enemies = 2
         self.n_possible_moves = 8
 
         self.is_random = is_random and from_file is None
@@ -85,15 +85,31 @@ class Player:
                 'lost_units': -10,
                 'converted_humans': 15,
                 'killed_humans': 0,
-                'killed_enemies': 20
+                'killed_enemies': 10,
+                'has_won': 500,
+                'has_lost': -500
             }
+            self.cumulated_rewards = list()
+            self.score_rounds = list()
 
         else:
+            if batch_size is not None:
+                self.batch_size = batch_size
+            if max_epsilon is not None:
+                self.max_epsilon = max_epsilon
+                self.epsilon = max_epsilon
+            if min_epsilon is not None:
+                self.min_epsilon = min_epsilon
+            if decay is not None:
+                self.decay = decay
+            if gamma is not None:
+                self.gamma = gamma
+            if lr is not None:
+                self.lr = lr
+            
             self.load(from_file)
         
-        self.cumulated_rewards = list()
         self.current_cumulated_reward = 0
-        self.score_rounds = list()
 
     def encode_map(self, 
                    map: Dict[str, Set[Tuple]], 
@@ -116,7 +132,11 @@ class Player:
         enemies = enemies[:self.max_len_seen_enemies]
         enemies += [(0, 0, 0)]*(self.max_len_seen_enemies - len(enemies))
         
-        input = torch.flatten(torch.tensor([humans, enemies], dtype=torch.float))
+        # print(humans)
+        # print(enemies)
+        # print(torch.tensor([humans, enemies], dtype=torch.float))
+
+        input = torch.flatten(torch.tensor(humans + enemies, dtype=torch.float))
         return input
 
     def forward(self, inputs, rewards=None):
