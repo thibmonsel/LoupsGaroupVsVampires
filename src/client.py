@@ -1,7 +1,8 @@
 import socket
 from typing import List
 
-import config
+from src import config
+# import config
 
 
 class EndException(Exception):
