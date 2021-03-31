@@ -1,35 +1,14 @@
-from src.reinforcement_learning.runner import Runner
-from src.reinforcement_learning.player import Player
+from argparse import ArgumentParser
 
-# RL test
+from src.reinforcement_learning.external_runner import rl_play
 
-player_1 = Player(
-    'vampires', 
-    # from_file='player_1'
-    max_memory=50000, 
-    batch_size=20, 
-    max_epsilon=0.5, 
-    min_epsilon=0.001,
-    decay=0.001,
-    gamma=0.99,
-    lr=1e-4
-)
 
-player_2 = Player(
-    'werewolves', 
-    is_random=True
-    # max_memory=1000, 
-    # batch_size=10, 
-    # max_epsilon=0.5, 
-    # min_epsilon=0.001,
-    # decay=0.001,
-    # gamma=0.99,
-    # lr=1e-4
-)
+if __name__ == '__main__':
+    parser = ArgumentParser()
 
-runner = Runner(player_1, player_2, n_games=10000, limit_rounds=50)
-runner.run()
+    parser.add_argument(dest='ip', default='localhost', type=str, help='IP adress the connection should be made to.')
+    parser.add_argument(dest='port', default='5555', type=int, help='Chosen port for the connection.')
 
-runner.plot_results()
-
-player_1.save('player_1')
+    args = parser.parse_args()
+    
+    rl_play(args, 'mainly_winning_strategy_2')
