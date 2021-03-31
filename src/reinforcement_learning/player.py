@@ -85,9 +85,9 @@ class Player:
                 'lost_units': -10,
                 'converted_humans': 15,
                 'killed_humans': 0,
-                'killed_enemies': 10,
-                'has_won': 500,
-                'has_lost': -500
+                'killed_enemies': 12,
+                'has_won': 1200,
+                'has_lost': -1200
             }
             self.cumulated_rewards = list()
             self.score_rounds = list()
