@@ -77,6 +77,36 @@ class Environment:
         
         os.remove('map.xml')
     
+    def set_map_from_server(self, width, height, map_array):
+        self.width = width
+        self.height = height
+        self.map = {
+            'humans': set(),
+            'vampires': set(),
+            'werewolves': set()
+        }
+        for x, y, n_humans, n_vampires, n_werewolves in map_array:
+            if n_humans > 0:
+                self.map['humans'].add((x, y, n_humans))
+            elif n_vampires > 0:
+                self.map['vampires'].add((x, y, n_vampires))
+            else:
+                self.map['werewolves'].add((x, y, n_werewolves))
+    
+    def update_map_from_server(self, update_array):
+        for x, y, n_humans, n_vampires, n_werewolves in update_array:
+            race, number = self.find_group(x, y)
+            if race is not None:
+                self.map[race].remove((x, y, number))
+            
+            if n_humans > 0:
+                self.map['humans'].add((x, y, n_humans))
+            elif n_vampires > 0:
+                self.map['vampires'].add((x, y, n_vampires))
+            elif n_werewolves > 0:
+                self.map['werewolves'].add((x, y, n_werewolves))
+
+
     def print_map(self):
         print(self.map)
     
