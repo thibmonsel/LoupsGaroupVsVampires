@@ -121,6 +121,9 @@ class Environment:
         """
         return len(self.map[player])
     
+    def count_units(self, race):
+        return sum([n_units for (_, _, n_units) in self.map[race]])
+
     def find_group(self, x, y):
         for race in self.races:
             for (x_unit, y_unit, number) in self.map[race]:
@@ -293,7 +296,7 @@ class Environment:
             if winner == player:
                 result['has_won'] = True
             elif winner is not None:
-                result['has_lost'] = False
+                result['has_lost'] = True
 
             results.append(result)
             maps.append(deepcopy(self.map))
@@ -312,8 +315,22 @@ class Environment:
         return False
     
     def winner(self) -> str:
+        if self.limit_steps is not None and self.current_step >= self.limit_steps:
+            n_vampires = self.count_units('vampires')
+            n_werewolves = self.count_units('werewolves')
+            
+            if n_vampires > n_werewolves:
+                return 'vampires'
+            
+            if n_werewolves > n_vampires:
+                return 'werewolves'
+            
+            return None
+            
         if len(self.map['vampires']) == 0:
             return 'werewolves'
+
         if len(self.map['werewolves']) == 0:
             return 'vampires'
+        
         return None
