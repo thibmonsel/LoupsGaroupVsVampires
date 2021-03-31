@@ -111,6 +111,10 @@ class Player:
         
         self.current_cumulated_reward = 0
 
+    def set_race(self, race):
+        self.player = race
+        self.enemy_player = 'vampires' if race == 'werewolves' else 'werewolves'
+
     def encode_map(self, 
                    map: Dict[str, Set[Tuple]], 
                    group: Tuple):
@@ -209,11 +213,11 @@ class Player:
             # Corners
             if x == 0 and y == 0 and (move <= 2 or move >= 6):
                 move = 3
-            elif x == environment.width and y == 0 and move <= 4:
+            elif x == environment.width - 1 and y == 0 and move <= 4:
                 move = 5
-            elif x == environment.width and y == environment.height and 2 <= move <= 6:
+            elif x == environment.width - 1 and y == environment.height - 1 and 2 <= move <= 6:
                 move = 7
-            elif x == 0 and y == environment.height and (move == 0 or move >= 4):
+            elif x == 0 and y == environment.height - 1 and (move == 0 or move >= 4):
                 move = 1
             
             # Border line
@@ -222,7 +226,7 @@ class Player:
                     move = 7
                 else:
                     move = 3
-            elif y == environment.height and 4 <= move <= 6:
+            elif y == environment.height - 1 and 4 <= move <= 6:
                 if move == 4:
                     move = 3
                 else:
@@ -232,7 +236,7 @@ class Player:
                     move = 5
                 else:
                     move = 1
-            elif x == environment.width and 2 <= move <= 4:
+            elif x == environment.width - 1 and 2 <= move <= 4:
                 if move == 2:
                     move = 1
                 else:
