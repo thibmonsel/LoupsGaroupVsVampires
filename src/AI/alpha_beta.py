@@ -18,26 +18,31 @@ def distance_to_humans(game_state):
 
 
 def heuristic(game_state):
-    COEFF_1 = 5
-    COEFF_2 = 1
-    units_diff = np.sum(game_state.STATE[:,:,game_state.TEAM]) - np.sum(game_state.STATE[:,:,3-game_state.TEAM])
-    return COEFF_1*units_diff + COEFF_2*distance_to_humans(game_state)
+    is_won = len(game_state.ENEMY_POSITIONS) == 0
+    if is_won: return 100
+    is_lost = len(game_state.TEAM_POSITIONS) == 0
+    if is_lost: return -100
+    COEFF_1 = 1
+    COEFF_2 = .2
+    units_diff = np.sum(game_state.STATE[:,:,game_state.TEAM]) - np.sum(game_state.STATE[:,:,game_state.ENEMY_TEAM])
+    heuristic_value = COEFF_1*units_diff + COEFF_2*distance_to_humans(game_state)
+    return 100*np.tanh(heuristic_value/100)
 
 
-def alpha_beta(game_state,rec_depth,alpha=float('-inf'),beta=float('inf')):
+def alpha_beta(game_state,rec_depth,alpha=-100,beta=100):
     if rec_depth == 0:
         return heuristic(game_state),None
-
-    possible_moves = game_state.get_possible_moves(1,6)
+    GAMMA =0.99999999999
+    possible_moves = game_state.get_next_moves()
     max_move = None
     for move in possible_moves:
         game_states = game_state.apply_move(move)
         if len(game_states) > 1:
             score,_ = alpha_beta_proba(game_states,rec_depth,-beta,-alpha)
-            score = -score
+            score = -GAMMA*score
         else: 
             score,_ = alpha_beta(game_states[0][1],rec_depth-1,-beta,-alpha)
-            score = -score
+            score = -GAMMA*score
         if score >= beta: #Beta cut
             return beta,move
         if score > alpha:

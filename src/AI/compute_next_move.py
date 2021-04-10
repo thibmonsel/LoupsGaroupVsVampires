@@ -6,7 +6,6 @@ def format_moves_for_response(moves):
 
 
 def compute_next_move(game_state):
-    print("pose",game_state.TEAM_POSITIONS)
-    score,move = alpha_beta(game_state,2)
-    print("move",move)
+    score,move = alpha_beta(game_state,6)
+    print(score,move)
     return len(move), format_moves_for_response(move)
