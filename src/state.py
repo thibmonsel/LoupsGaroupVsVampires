@@ -24,6 +24,10 @@ class GameState:
         copy.HUMAN_POSITIONS = self.HUMAN_POSITIONS.copy()
         return copy
 
+    def change_teams(self):
+        self.TEAM,self.ENEMY_TEAM = self.ENEMY_TEAM,self.TEAM
+        self.TEAM_POSITIONS,self.ENEMY_POSITIONS = self.ENEMY_POSITIONS,self.TEAM_POSITIONS
+
     def set_board(self,size):
         n,m = size
         self.STATE = np.array([[[0,0,0]]*n]*m)
@@ -80,6 +84,16 @@ class GameState:
 
     def get_possible_directions(self,i,j):
         return [(i+k,j+l) for k in range(-1,2) for l in range(-1,2) if (k!=0 or l!=0) and 0<=i+k<self.STATE.shape[0] and 0<=j+l<self.STATE.shape[1]  ]
+
+    
+    def get_next_moves(self):
+        """only consider restrained list of moves"""
+        all_moves = set()
+        for i,j in self.TEAM_POSITIONS:
+            units = self.STATE[i,j,self.TEAM]
+            for k,l in self.get_possible_directions(i,j):
+                all_moves.add(frozenset({((i,j),units,(k,l))}))
+        return all_moves
 
     def get_possible_moves(
             self,
@@ -179,10 +193,8 @@ class GameState:
                 continue
 
             # If there are enemies
-            if destination_content[self.TEAM] > 0:
-                ennemy_player = 3 - self.TEAM 
-                n_ennemies = destination_content[ennemy_player]
-
+            if destination_content[self.ENEMY_TEAM] > 0:
+                n_ennemies = destination_content[self.ENEMY_TEAM]
                 # No battle
                 if n_units >= 1.5 * n_ennemies:
                     new_content = [0,0,0]
@@ -201,7 +213,7 @@ class GameState:
                 
                 n_surv_team_with_proba = [(p_win*binom(n_units,k)*(1-p_win)**k*p_win**(n_units-k),k) for k in range(n_units+1)]
                 n_surv_ennemy_with_proba = [((1-p_win)*binom(n_ennemies,k)*(1-p_win)**k*p_win**(n_ennemies-k),k) for k in range(n_ennemies+1)]
-
+                
                 new_states = []
                 for proba1,state in states:
                     #case team win
@@ -214,7 +226,7 @@ class GameState:
                     #case ennemy win
                     for proba2,n_surv in n_surv_ennemy_with_proba:
                         new_content = [0,0,0]
-                        new_content[ennemy_player] = n_surv
+                        new_content[self.ENEMY_TEAM] = n_surv
                         state = state.copy()
                         state.update_board([(x_end, y_end,*new_content)])
                         new_states.append((proba1*proba2,state))
@@ -222,7 +234,6 @@ class GameState:
 
         #Change the player after the move has been done        
         for _,state in states:
-            state.TEAM, state.ENEMY_TEAM = state.ENEMY_TEAM, state.TEAM
-            state.TEAM_POSITIONS, state.ENEMY_POSITIONS = state.ENEMY_POSITIONS, state.TEAM_POSITIONS
+            state.change_teams()
         return states
 
