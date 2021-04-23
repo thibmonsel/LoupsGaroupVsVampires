@@ -2,16 +2,14 @@ import numpy as np
 
 def distance_to_humans(game_state):
     total_score = 0
-    for i in range(game_state.STATE.shape[0]):
-        for j in range(game_state.STATE.shape[1]):
-            if game_state.STATE[i,j,0] > 0:
-                n_human = game_state.STATE[i,j,0]
-                dists = []
-                for i2,j2 in game_state.TEAM_POSITIONS:
-                    if game_state.STATE[i2,j2,game_state.TEAM] >= n_human:
-                        dists.append(max(np.abs(i2-i),np.abs(j2-j)))
-                if len(dists) > 0:
-                    total_score += n_human/min(dists)
+    for (i,j) in game_state.HUMAN_POSITIONS:
+        n_human = game_state.STATE[i,j,0]
+        dists = []
+        for i2,j2 in game_state.TEAM_POSITIONS:
+            if game_state.STATE[i2,j2,game_state.TEAM] >= n_human:
+                dists.append(max(np.abs(i2-i),np.abs(j2-j)))
+        if len(dists) > 0:
+            total_score += n_human/(min(dists)**2)
     return total_score
 
 

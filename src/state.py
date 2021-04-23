@@ -83,17 +83,58 @@ class GameState:
             message_handler[info_type](data)
 
     def get_possible_directions(self,i,j):
-        return [(i+k,j+l) for k in range(-1,2) for l in range(-1,2) if (k!=0 or l!=0) and 0<=i+k<self.STATE.shape[0] and 0<=j+l<self.STATE.shape[1]  ]
+        directions = []
+        if np.sum(self.STATE[i+1:,j+1:,[0,self.ENEMY_TEAM]]) > 0:
+            directions.append((i+1,j+1))
+        if j>0 and  np.sum(self.STATE[i+1:,:j,[0,self.ENEMY_TEAM]]) > 0:
+            directions.append((i+1,j-1))
+        if np.sum(self.STATE[i+1:,:,[0,self.ENEMY_TEAM]]) > 0:
+            directions.append((i+1,j))
+        if i>0 and np.sum(self.STATE[:i,:,[0,self.ENEMY_TEAM]]) > 0:
+            directions.append((i-1,j))
+        if i>0 and np.sum(self.STATE[:i,j+1:,[0,self.ENEMY_TEAM]]) > 0:
+            directions.append((i-1,j+1))
+        if i>0 and j>0 and np.sum(self.STATE[:i,:j,[0,self.ENEMY_TEAM]]) > 0:
+            directions.append((i-1,j-1))
+        if j>0 and np.sum(self.STATE[:,:j,[0,self.ENEMY_TEAM]]) > 0:
+            directions.append((i,j-1))
+        if np.sum(self.STATE[:,j+1:,[0,self.ENEMY_TEAM]]) > 0:
+            directions.append((i,j+1))
+        return directions
+
+    def check_move_is_allowed(self,move):
+        starts,_,ends = zip(*move)
+        return len(set(starts).intersection(set(ends))) == 0
 
     
-    def get_next_moves(self):
+    def get_next_moves(self,with_split=False):
         """only consider restrained list of moves"""
+        all_moves = set()
+
+        for i,j in self.TEAM_POSITIONS:
+            units = self.STATE[i,j,self.TEAM]
+            new_moves = set([frozenset({((i,j),units,(k,l))}) for k,l in  self.get_possible_directions(i,j)])
+            all_moves = [ move.union(new_move) for move in all_moves for new_move in new_moves]
+            all_moves = set([m for m in all_moves if self.check_move_is_allowed(m)])
+            all_moves.update(new_moves)
+
+        if with_split and len(self.TEAM_POSITIONS)<2:
+            all_moves.update(self.get_next_moves_with_one_split())
+        return all_moves
+
+    def get_next_moves_with_one_split(self,max_split_interval=2):
         all_moves = set()
         for i,j in self.TEAM_POSITIONS:
             units = self.STATE[i,j,self.TEAM]
-            for k,l in self.get_possible_directions(i,j):
-                all_moves.add(frozenset({((i,j),units,(k,l))}))
+            split_interval = min(max_split_interval,units//2)
+            if split_interval>0:
+                for nb in map(int,np.linspace(units//2//split_interval,units//2,split_interval)): #only consider 5 possible split sizes
+                    for k,l in self.get_possible_directions(i,j):
+                        for k2,l2 in self.get_possible_directions(i,j):
+                            if k!=k2 or l!=l2:
+                                all_moves.add(frozenset({((i,j),nb,(k,l)),((i,j),units-nb,(k2,l2))}))
         return all_moves
+    
 
     def get_possible_moves(
             self,
