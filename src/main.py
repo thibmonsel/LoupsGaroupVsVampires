@@ -10,7 +10,7 @@ from AI.compute_next_move import compute_next_move
 def play_game(args):
     game_state = GameState()
     client_socket = ClientSocket(args.ip, args.port)
-    client_socket.send_nme("NOM DE VOTRE IA")
+    client_socket.send_nme("IA du groupe")
     # set message
     message = client_socket.get_message()
     game_state.update_game_state(message)
