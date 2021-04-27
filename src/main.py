@@ -25,12 +25,13 @@ def play_game(args):
     game_state.update_game_state(message)
     
     # start of the game
+    ai_mode = "alpha_beta"
     while True:
         message  = client_socket.get_message()
         time_message_received = time.time()
         game_state.update_game_state(message)
         if message[0] == "upd":
-            nb_moves, moves = compute_next_move(game_state)
+            nb_moves, moves = compute_next_move(game_state, ai_mode)
             client_socket.send_mov(nb_moves, moves)
 
 
