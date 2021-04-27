@@ -1,8 +1,8 @@
 import socket
 from typing import List
 
-from src import config
-# import config
+#from src import config
+import config
 
 
 class EndException(Exception):
@@ -110,6 +110,7 @@ class ClientSocket:
         self._socket.send("NME".encode() + bytes([len(name)]) + name.encode())
 
     def send_mov(self, nb_moves: int, moves):
+        print('yo')
         message = bytes([nb_moves])
         for move in moves:
             for data in move:
