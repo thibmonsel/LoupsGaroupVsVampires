@@ -1,6 +1,7 @@
 import socket
 from typing import List
-
+import time
+#from src import config
 import config
 
 
@@ -109,6 +110,7 @@ class ClientSocket:
         self._socket.send("NME".encode() + bytes([len(name)]) + name.encode())
 
     def send_mov(self, nb_moves: int, moves):
+
         message = bytes([nb_moves])
         for move in moves:
             for data in move:
