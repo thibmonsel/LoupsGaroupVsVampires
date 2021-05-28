@@ -4,13 +4,18 @@ def distance_to_humans(game_state):
     total_score = 0
     for (i,j) in game_state.HUMAN_POSITIONS:
         n_human = game_state.STATE[i,j,0]
-        dists = []
+        team_dists = []
+        enemy_dists = []
         for i2,j2 in game_state.TEAM_POSITIONS:
             if game_state.STATE[i2,j2,game_state.TEAM] >= n_human:
-                dists.append(max(np.abs(i2-i),np.abs(j2-j)))
-
-        if len(dists) > 0:
-            total_score += n_human/min(dists)
+                team_dists.append(max(np.abs(i2-i),np.abs(j2-j)))
+        for i2,j2 in game_state.ENEMY_POSITIONS:
+            if game_state.STATE[i2,j2,game_state.ENEMY_TEAM] >= n_human:
+                enemy_dists.append(max(np.abs(i2-i),np.abs(j2-j)))
+        if len(team_dists) > 0:
+            total_score += n_human/min(team_dists)
+        if len(enemy_dists) > 0:
+            total_score += n_human/min(enemy_dists)
     return total_score
 
 
@@ -25,18 +30,17 @@ def heuristic(game_state):
     COEFF_2 = .2
     units_diff = np.sum(game_state.STATE[:,:,game_state.TEAM]) - np.sum(game_state.STATE[:,:,game_state.ENEMY_TEAM])
     heuristic_value = COEFF_1*units_diff + COEFF_2*distance_to_humans(game_state)
-    return 50 + 50*np.tanh(heuristic_value/100)
+    return 100*np.tanh(heuristic_value/20)
 
 REC_DEPTH = 4
 
-def alpha_beta(game_state,rec_depth=REC_DEPTH,alpha=0,beta=100):
+def alpha_beta(game_state,rec_depth=REC_DEPTH,alpha=-100,beta=100):
     is_won = len(game_state.ENEMY_POSITIONS) == 0
     is_lost = len(game_state.TEAM_POSITIONS) == 0
     if rec_depth == 0 or is_won or is_lost:
         return heuristic(game_state),None
-    GAMMA =0.99999999999
+    GAMMA =0.999999
     possible_moves = game_state.get_next_moves(rec_depth==REC_DEPTH)
-
     max_move = None
     for move in possible_moves:
         game_states = game_state.apply_move(move)
