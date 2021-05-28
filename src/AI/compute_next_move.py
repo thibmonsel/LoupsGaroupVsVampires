@@ -1,4 +1,3 @@
-import random
 from AI.alpha_beta import alpha_beta
 
 def format_moves_for_response(moves):
@@ -6,6 +5,6 @@ def format_moves_for_response(moves):
 
 
 def compute_next_move(game_state):
-    score,move = alpha_beta(game_state,5)
+    score,move = alpha_beta(game_state)
     print(score,move)
     return len(move), format_moves_for_response(move)
