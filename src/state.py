@@ -84,21 +84,21 @@ class GameState:
 
     def get_possible_directions(self,i,j):
         directions = []
-        if np.sum(self.STATE[i+1:,j+1:,[0,self.ENEMY_TEAM]]) > 0:
+        if np.sum(self.STATE[i+1:,j+1:,self.ENEMY_TEAM])>0 or np.sum(self.STATE[i+1:,j+1:,0]) > np.sum(self.STATE[i+1:,j+1:,self.TEAM]):
             directions.append((i+1,j+1))
-        if j>0 and  np.sum(self.STATE[i+1:,:j,[0,self.ENEMY_TEAM]]) > 0:
+        if j>0 and (np.sum(self.STATE[i+1:,:j,self.ENEMY_TEAM]) >0 or np.sum(self.STATE[i+1:,:j,0]) > np.sum(self.STATE[i+1:,:j,self.TEAM])):
             directions.append((i+1,j-1))
-        if np.sum(self.STATE[i+1:,:,[0,self.ENEMY_TEAM]]) > 0:
+        if np.sum(self.STATE[i+1:,j,self.ENEMY_TEAM])>0 or np.sum(self.STATE[i+1:,j,0]) > np.sum(self.STATE[i+1:,j,self.TEAM]):
             directions.append((i+1,j))
-        if i>0 and np.sum(self.STATE[:i,:,[0,self.ENEMY_TEAM]]) > 0:
+        if i>0 and (np.sum(self.STATE[:i,j,self.ENEMY_TEAM])>0 or np.sum(self.STATE[:i,j,0]) > np.sum(self.STATE[:i,j,self.TEAM])):
             directions.append((i-1,j))
-        if i>0 and np.sum(self.STATE[:i,j+1:,[0,self.ENEMY_TEAM]]) > 0:
+        if i>0 and (np.sum(self.STATE[:i,j+1:,self.ENEMY_TEAM])>0 or np.sum(self.STATE[:i,j+1:,0]) > np.sum(self.STATE[:i,j+1:,self.TEAM])):
             directions.append((i-1,j+1))
-        if i>0 and j>0 and np.sum(self.STATE[:i,:j,[0,self.ENEMY_TEAM]]) > 0:
+        if i>0 and j>0 and (np.sum(self.STATE[:i,:j,self.ENEMY_TEAM])>0 or np.sum(self.STATE[:i,:j,0]) > np.sum(self.STATE[:i,:j,self.TEAM])):
             directions.append((i-1,j-1))
-        if j>0 and np.sum(self.STATE[:,:j,[0,self.ENEMY_TEAM]]) > 0:
+        if j>0 and (np.sum(self.STATE[i,:j,self.ENEMY_TEAM])>0 or np.sum(self.STATE[i,:j,0])> np.sum(self.STATE[i,:j,self.TEAM])):
             directions.append((i,j-1))
-        if np.sum(self.STATE[:,j+1:,[0,self.ENEMY_TEAM]]) > 0:
+        if (np.sum(self.STATE[i,j+1:,self.ENEMY_TEAM])>0 or np.sum(self.STATE[i,j+1:,0]) > np.sum(self.STATE[i,j+1:,self.TEAM])):
             directions.append((i,j+1))
         return directions
 
@@ -114,9 +114,10 @@ class GameState:
         for i,j in self.TEAM_POSITIONS:
             units = self.STATE[i,j,self.TEAM]
             new_moves = set([frozenset({((i,j),units,(k,l))}) for k,l in  self.get_possible_directions(i,j)])
-            all_moves = [ move.union(new_move) for move in all_moves for new_move in new_moves]
-            all_moves = set([m for m in all_moves if self.check_move_is_allowed(m)])
+            combination_moves = [ move.union(new_move) for move in all_moves for new_move in new_moves]
+            combination_moves = set([m for m in combination_moves if self.check_move_is_allowed(m)])
             all_moves.update(new_moves)
+            all_moves.update(combination_moves)
 
         if with_split and len(self.TEAM_POSITIONS)<2:
             all_moves.update(self.get_next_moves_with_one_split())
@@ -128,7 +129,7 @@ class GameState:
             units = self.STATE[i,j,self.TEAM]
             split_interval = min(max_split_interval,units//2)
             if split_interval>0:
-                for nb in map(int,np.linspace(units//2//split_interval,units//2,split_interval)): #only consider 5 possible split sizes
+                for nb in map(int,np.linspace(units//2//split_interval,units//2,split_interval)): #only consider 3 possible split sizes
                     for k,l in self.get_possible_directions(i,j):
                         for k2,l2 in self.get_possible_directions(i,j):
                             if k!=k2 or l!=l2:
@@ -211,7 +212,7 @@ class GameState:
                         state.update_board([(x_end, y_end,*new_content)])
                 
                 # Battle
-                else:
+                elif n_units >= n_humans*1.5:
                     p_win = n_units / (2 * n_humans)
                     n = n_units + n_humans
                     n_surv_with_proba = [(p_win*binom(n,k)*p_win**k*(1-p_win)**(n-k),k) for k in range(n+1)]
